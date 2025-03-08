@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <script src="https://unpkg.com/vue@3"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: url('https://i.ibb.co/63sfJzW/pixel-art-sky-4.png') no-repeat center center fixed;
+      background-size: cover;
+      font-family: sans-serif;
+    }
+    #pixel-art-app {
+      display: table;
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+    }
+    .table-row {
+      display: table-row;
+    }
+    .table-cell {
+      display: table-cell;
+      vertical-align: top;
+    }
+    #left-panel {
+      width: 120px;
+      background: rgba(0,0,0,0.2);
+      padding: 10px;
+    }
+    #right-panel {
+      width: 160px;
+      background: rgba(0,0,0,0.1);
+      padding: 10px;
+    }
+    #main-area {
+      position: relative;
+      padding: 10px;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 600px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      /* Removed border: 1px solid #ccc; */
+      border: none;
+      background: transparent;
+      overflow: auto;
+      box-sizing: border-box;
+    }
+    #pixel-canvas {
+      background: white;
+      cursor: crosshair;
+    }
+    .tools-header {
+      font-weight: bold;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+    .tool-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #555;
+      color: #f0f0f0;
+      border: none;
+      border-radius: 6px;
+      padding: 0 12px;
+      height: 36px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+      margin: 4px 0;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .tool-button:hover {
+      background-color: #666;
+    }
+    .tool-button:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+    .color-box {
+      width: 28px;
+      height: 28px;
+      cursor: pointer;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      margin: 2px;
+    }
+    .color-palette-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 8px;
+    }
+    input[type="color"] {
+      width: 40px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      height: 36px;
+      padding: 0;
+      margin-top: 4px;
+      box-sizing: border-box;
+    }
+    .number-input {
+      width: 60px;
+      text-align: center;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      outline: none;
+      background: #fff;
+      height: 36px;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    .bottom-panel {
+      margin-top: 8px;
+    }
+    .control-row {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin: 6px 0;
+    }
+    .advanced-color-panel-header {
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 8px;
+    }
+    .checkbox-row {
+      margin: 8px 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .frame-panel {
+      position: fixed;
+      width: 100%;
+      background-color: #333;
+      bottom: 0;
+      left: 0;
+      padding: 8px;
+      display: none;
+      border-top: 1px solid rgba(0,0,0,0.5);
+    }
+    .frame-panel.active {
+      display: block;
+    }
+    .frame-panel-header {
+      color: #fff;
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+    .invisible-table {
+      display: table;
+      width: 100%;
+    }
+    .invisible-table-row {
+      display: table-row;
+    }
+    .invisible-table-cell {
+      display: table-cell;
+      vertical-align: top;
+      padding: 4px;
+    }
+    #layer-section {
+      position: fixed;
+      right: 0;
+      top: 0;
+      width: 200px;
+      height: 100%;
+      background-color: rgba(0,0,0,0.3);
+      padding: 8px;
+      overflow: auto;
+      display: none;
+    }
+    #layer-section.active {
+      display: block;
+    }
+    #layer-section h2 {
+      color: #fff;
+      margin-bottom: 8px;
+      font-size: 16px;
+    }
+    .layer-list-item {
+      border: 1px solid #ccc;
+      margin-bottom: 6px;
+      padding: 4px;
+      background: #444;
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+    }
+    .layer-controls {
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+<div id="pixel-art-app">
+  <div class="table-row">
+    <div id="left-panel" class="table-cell">
+      <div class="tools-header">Tools</div>
+      <button class="tool-button" @click="selectTool('pencil')" :disabled="tool==='pencil'">Pencil</button>
+      <button class="tool-button" @click="selectTool('eraser')" :disabled="tool==='eraser'">Eraser</button>
+      <button class="tool-button" @click="selectTool('fill')" :disabled="tool==='fill'">Fill</button>
+      <button class="tool-button" @click="toggleFrames">Frames Panel</button>
+      <button class="tool-button" @click="toggleLayerPanel">Layers</button>
+      <button class="tool-button" @click="undo" :disabled="historyIndex<=0">Undo</button>
+      <button class="tool-button" @click="redo" :disabled="historyIndex>=history.length-1">Redo</button>
+      <button class="tool-button" @click="clearCanvas">Clear</button>
+      <button class="tool-button" @click="exportPNG">Export PNG</button>
+    </div>
+
+    <div id="main-area" class="table-cell">
+      <div id="canvas-container" ref="canvasContainer">
+        <canvas 
+          id="pixel-canvas" 
+          ref="canvasRef"
+          @mousedown="startDrawing"
+          @mousemove="draw"
+          @mouseup="stopDrawing"
+          @mouseleave="stopDrawing"
+        ></canvas>
+      </div>
+      <div class="bottom-panel">
+        <div class="control-row">
+          <input type="number" class="number-input" v-model="widthValue" min="1" max="512"/>
+          <input type="number" class="number-input" v-model="heightValue" min="1" max="512"/>
+          <button class="tool-button" @click="setGridSize">Set</button>
+          <button class="tool-button" @click="zoomOut" :disabled="zoom<=1">-</button>
+          <span style="color:#333;">Zoom {{zoom}}x</span>
+          <button class="tool-button" @click="zoomIn">+</button>
+        </div>
+        <div class="control-row checkbox-row">
+          <input type="checkbox" id="toggle-grid" v-model="showGrid"/>
+          <label for="toggle-grid" style="color:#333;">Show Grid Lines</label>
+        </div>
+        <div class="control-row">
+          <select v-model="renderMode" class="tool-button" style="width:auto;">
+            <option value="fast">Performance</option>
+            <option value="quality">High Quality</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div id="right-panel" class="table-cell">
+      <div class="tools-header" style="color:#000;">Advanced Colors</div>
+      <input type="color" v-model="customColor"/>
+      <button class="tool-button" style="margin-top:6px;" @click="addCustomColor">Add Color</button>
+      <div class="color-palette-container">
+        <div 
+          v-for="c in colorPalette" 
+          :key="c" 
+          class="color-box" 
+          :style="{backgroundColor:c}" 
+          @click="setColor(c)"
+        ></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="frame-panel" :class="{active: framesActive}">
+  <div class="frame-panel-header">Frames</div>
+  <div>
+    <div v-for="(frame, idx) in frames" :key="idx" style="border:1px solid #999;padding:4px;margin-bottom:4px;background:#222;color:#fff;">
+      Frame {{idx+1}}
+      <button style="float:right;" @click="deleteFrame(idx)">Del</button>
+    </div>
+  </div>
+  <button class="tool-button" style="width:auto;margin-right:4px;" @click="addFrame">Add Frame</button>
+  <button class="tool-button" style="width:auto;" @click="previewFrames">Preview</button>
+</div>
+
+<div id="layer-section" :class="{active: layerPanelActive}">
+  <h2>Layers</h2>
+  <div v-for="(layer, idx) in layers" :key="idx" class="layer-list-item">
+    <div>Layer {{idx+1}}</div>
+    <div>
+      <button @click="deleteLayer(idx)">X</button>
+    </div>
+  </div>
+  <div class="layer-controls">
+    <button class="tool-button" style="width:100%;margin-bottom:4px;" @click="addLayer">Add Layer</button>
+    <button class="tool-button" style="width:100%;" @click="toggleLayerPanel">Close</button>
+  </div>
+</div>
+
+<script>
+const app = Vue.createApp({
+  data() {
+    return {
+      gridWidth: 100,
+      gridHeight: 100,
+      widthValue: 100,
+      heightValue: 100,
+      tool: 'pencil',
+      color: '#000000',
+      customColor: '#ff0000',
+      colorPalette: [
+        '#000000','#ffffff','#ff0000',
+        '#00ff00','#0000ff','#ffff00',
+        '#00ffff','#ff00ff'
+      ],
+      pixels: [],
+      isDrawing: false,
+      zoom: 1,
+      history: [],
+      historyIndex: 0,
+      showGrid: true,
+      renderMode: 'fast',
+      framesActive: false,
+      frames: [],
+      layerPanelActive: false,
+      layers: []
+    }
+  },
+  mounted() {
+    this.initGrid();
+    this.loadCookie();
+    this.renderCanvas();
+    window.addEventListener('resize', this.renderCanvas);
+    this.frames.push({data: []});
+    this.layers.push({data: []});
+  },
+  unmounted() {
+    window.removeEventListener('resize', this.renderCanvas);
+  },
+  methods: {
+    toggleFrames() {
+      this.framesActive = !this.framesActive;
+    },
+    addFrame() {
+      this.frames.push({data: []});
+    },
+    deleteFrame(idx) {
+      if(this.frames.length>1) this.frames.splice(idx,1);
+    },
+    previewFrames() {
+      alert('Previewing frames (demo).');
+    },
+    toggleLayerPanel() {
+      this.layerPanelActive = !this.layerPanelActive;
+    },
+    addLayer() {
+      this.layers.push({data: []});
+    },
+    deleteLayer(idx) {
+      if(this.layers.length>1) this.layers.splice(idx,1);
+    },
+    setCookie(name, value, days) {
+      let d = new Date();
+      d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+      let expires = "expires=" + d.toUTCString();
+      document.cookie = name + "=" + value + ";" + expires + ";path=/";
+    },
+    getCookie(name) {
+      let decodedCookie = decodeURIComponent(document.cookie);
+      let ca = decodedCookie.split(';');
+      for(let i=0; i<ca.length; i++){
+        let c = ca[i].trim();
+        if (c.indexOf(name + "=") == 0) return c.substring(name.length + 1,c.length);
+      }
+      return "";
+    },
+    saveCookie() {
+      let data = JSON.stringify({
+        pixels: this.pixels,
+        tool: this.tool,
+        color: this.color,
+        gridWidth: this.gridWidth,
+        gridHeight: this.gridHeight
+      });
+      this.setCookie('pixelArtData', data, 30);
+    },
+    loadCookie() {
+      let saved = this.getCookie('pixelArtData');
+      if(saved) {
+        let obj = JSON.parse(saved);
+        if(obj.gridWidth && obj.gridHeight) {
+          this.gridWidth = obj.gridWidth;
+          this.gridHeight = obj.gridHeight;
+          this.widthValue = obj.gridWidth;
+          this.heightValue = obj.gridHeight;
+        }
+        this.initGrid();
+        if(obj.pixels && obj.pixels.length === this.gridWidth * this.gridHeight) {
+          this.pixels = obj.pixels;
+        }
+        if(obj.tool) this.tool = obj.tool;
+        if(obj.color) this.color = obj.color;
+      }
+    },
+    initGrid() {
+      this.pixels = [];
+      for(let i=0; i < this.gridWidth * this.gridHeight; i++){
+        this.pixels.push(null);
+      }
+    },
+    setGridSize() {
+      let w = parseInt(this.widthValue, 10);
+      let h = parseInt(this.heightValue, 10);
+      if(isNaN(w) || w < 1 || w > 512) return;
+      if(isNaN(h) || h < 1 || h > 512) return;
+      this.recordHistory();
+      this.gridWidth = w;
+      this.gridHeight = h;
+      this.initGrid();
+      this.renderCanvas();
+    },
+    selectTool(t) {
+      this.tool = t;
+    },
+    setColor(c) {
+      this.color = c;
+      this.tool = 'pencil';
+    },
+    addCustomColor() {
+      if(!this.colorPalette.includes(this.customColor)) {
+        this.colorPalette.push(this.customColor);
+      }
+    },
+    startDrawing(e) {
+      this.isDrawing = true;
+      this.handleDraw(e);
+    },
+    draw(e) {
+      if(!this.isDrawing) return;
+      this.handleDraw(e);
+    },
+    stopDrawing() {
+      if(this.isDrawing) {
+        this.isDrawing = false;
+        this.recordHistory();
+        this.saveCookie();
+      }
+    },
+    handleDraw(e) {
+      let rect = this.$refs.canvasRef.getBoundingClientRect();
+      let x = e.clientX - rect.left;
+      let y = e.clientY - rect.top;
+      let cellW = this.$refs.canvasRef.width / this.gridWidth;
+      let cellH = this.$refs.canvasRef.height / this.gridHeight;
+      let col = Math.floor(x / cellW);
+      let row = Math.floor(y / cellH);
+      if(col < 0 || col >= this.gridWidth || row < 0 || row >= this.gridHeight) return;
+      let index = row * this.gridWidth + col;
+      if(this.tool === 'pencil') {
+        this.pixels[index] = this.color;
+        this.renderCanvas();
+      }
+      if(this.tool === 'eraser') {
+        this.pixels[index] = null;
+        this.renderCanvas();
+      }
+      if(this.tool === 'fill') {
+        let targetColor = this.pixels[index];
+        let fillColor = this.color;
+        if(targetColor === fillColor) return;
+        this.floodFill(col, row, targetColor, fillColor);
+        this.renderCanvas();
+        this.recordHistory();
+        this.saveCookie();
+      }
+    },
+    floodFill(col, row, target, fillColor) {
+      let stack = [[col, row]];
+      while(stack.length){
+        let [x, y] = stack.pop();
+        if(x<0 || x>=this.gridWidth || y<0 || y>=this.gridHeight) continue;
+        let idx = y * this.gridWidth + x;
+        if(this.pixels[idx] === target){
+          this.pixels[idx] = fillColor;
+          stack.push([x+1, y],[x-1, y],[x, y+1],[x, y-1]);
+        }
+      }
+    },
+    undo() {
+      if(this.historyIndex > 0){
+        this.historyIndex--;
+        this.pixels = JSON.parse(JSON.stringify(this.history[this.historyIndex]));
+        this.renderCanvas();
+        this.saveCookie();
+      }
+    },
+    redo() {
+      if(this.historyIndex < this.history.length - 1){
+        this.historyIndex++;
+        this.pixels = JSON.parse(JSON.stringify(this.history[this.historyIndex]));
+        this.renderCanvas();
+        this.saveCookie();
+      }
+    },
+    recordHistory() {
+      let current = JSON.parse(JSON.stringify(this.pixels));
+      this.history.splice(this.historyIndex + 1);
+      this.history.push(current);
+      this.historyIndex = this.history.length - 1;
+    },
+    clearCanvas() {
+      let confirmClear = window.confirm('Are you sure you want to clear your artwork?');
+      if(!confirmClear) return;
+      this.recordHistory();
+      for(let i=0; i < this.pixels.length; i++){
+        this.pixels[i] = null;
+      }
+      this.renderCanvas();
+      this.saveCookie();
+    },
+    renderCanvas() {
+      let canvas = this.$refs.canvasRef;
+      let ctx = canvas.getContext('2d');
+      let container = this.$refs.canvasContainer;
+      let containerWidth = container.clientWidth;
+      let containerHeight = container.clientHeight;
+      let cellSize = Math.min(containerWidth / this.gridWidth, containerHeight / this.gridHeight) * this.zoom;
+      let totalWidth = cellSize * this.gridWidth;
+      let totalHeight = cellSize * this.gridHeight;
+      canvas.width = totalWidth;
+      canvas.height = totalHeight;
+      for(let r=0; r<this.gridHeight; r++){
+        for(let c=0; c<this.gridWidth; c++){
+          let isEven = ((r + c) % 2 === 0);
+          ctx.fillStyle = isEven ? '#ffffff' : '#e0e0e0';
+          ctx.fillRect(c*cellSize, r*cellSize, cellSize, cellSize);
+        }
+      }
+      for(let r=0; r<this.gridHeight; r++){
+        for(let c=0; c<this.gridWidth; c++){
+          let index = r * this.gridWidth + c;
+          let color = this.pixels[index];
+          if(color) {
+            ctx.fillStyle = color;
+            ctx.fillRect(c*cellSize, r*cellSize, cellSize, cellSize);
+          }
+        }
+      }
+      if(this.showGrid) {
+        ctx.beginPath();
+        ctx.strokeStyle = '#999';
+        for(let r=0; r<=this.gridHeight; r++){
+          ctx.moveTo(0, r * cellSize);
+          ctx.lineTo(totalWidth, r * cellSize);
+        }
+        for(let c=0; c<=this.gridWidth; c++){
+          ctx.moveTo(c * cellSize, 0);
+          ctx.lineTo(c * cellSize, totalHeight);
+        }
+        ctx.stroke();
+      }
+    },
+    zoomIn() {
+      this.zoom += 0.25;
+      this.renderCanvas();
+    },
+    zoomOut() {
+      if(this.zoom > 1){
+        this.zoom -= 0.25;
+        this.renderCanvas();
+      }
+    },
+    exportPNG() {
+      let scale = 10;
+      let tempCanvas = document.createElement('canvas');
+      tempCanvas.width = this.gridWidth * scale;
+      tempCanvas.height = this.gridHeight * scale;
+      let tctx = tempCanvas.getContext('2d');
+      for(let r=0; r<this.gridHeight; r++){
+        for(let c=0; c<this.gridWidth; c++){
+          let idx = r * this.gridWidth + c;
+          let isEven = ((r + c) % 2 === 0);
+          if(this.pixels[idx]) {
+            tctx.fillStyle = this.pixels[idx];
+          } else {
+            tctx.fillStyle = isEven ? '#ffffff' : '#e0e0e0';
+          }
+          tctx.fillRect(c*scale, r*scale, scale, scale);
+        }
+      }
+      if(this.showGrid){
+        tctx.strokeStyle = '#999';
+        for(let rr=0; rr<=this.gridHeight; rr++){
+          tctx.beginPath();
+          tctx.moveTo(0, rr*scale);
+          tctx.lineTo(this.gridWidth*scale, rr*scale);
+          tctx.stroke();
+        }
+        for(let cc=0; cc<=this.gridWidth; cc++){
+          tctx.beginPath();
+          tctx.moveTo(cc*scale, 0);
+          tctx.lineTo(cc*scale, this.gridHeight*scale);
+          tctx.stroke();
+        }
+      }
+      let dataURL = tempCanvas.toDataURL('image/png');
+      let link = document.createElement('a');
+      link.href = dataURL;
+      link.download = 'pixel_art.png';
+      link.click();
+    }
+  }
+});
+app.mount('#pixel-art-app');
+</script>
+
+<!-- Local JS references -->
+<script type='text/javascript' src="js/jquery.min.js"></script>
+<script type='text/javascript' src="js/jquery-ui.min.js"></script>
+<script type='text/javascript' src="js/jquery.ui.touch-punch.min.js"></script>
+<script type="text/javascript" src="js/colorpicker.js"></script>
+<script type="text/javascript" src="js/FileSaver.js"></script>
+<script type="text/javascript" src="js/jszip.min.js"></script>
+<script type="text/javascript" src="js/pep.js"></script>
+<script type="text/javascript" src="js/tipstepper.js"></script>
+<script type='text/javascript' src="js/pixshop.js"></script>
+<script type='text/javascript' src="js/drawing.js"></script>
+<script type='text/javascript' src="js/materialize.min.js"></script>
+<script type='text/javascript' src="js/dist/libgif.js"></script>
+<script type='text/javascript' src="js/dist/gif.js"></script>
+<script type='text/javascript' src="js/pixilart_app.js"></script>
+</body>
+</html>
