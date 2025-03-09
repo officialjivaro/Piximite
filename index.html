@@ -1,633 +1,900 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Advanced Pixel Art Editor (Light-Themed)</title>
+  <!-- Vue 3 (CDN) -->
   <script src="https://unpkg.com/vue@3"></script>
+  
+  <!-- External JS/CSS references if needed -->
+  <!-- For advanced color picking, filers, stamps, etc. 
+       We'll mimic the references to the libraries used by Pixilart:
+       jQuery, jQuery UI, Touch Punch, colorpicker, FileSaver, JSZip, pep.js, tipstepper, plus GIF libs, etc.
+       Just ensure these files exist or point to your own references. -->
+  <script src="js/jquery.min.js"></script>
+  <script src="js/jquery-ui.min.js"></script>
+  <script src="js/jquery.ui.touch-punch.min.js"></script>
+  <script src="js/colorpicker.js"></script>
+  <script src="js/FileSaver.js"></script>
+  <script src="js/jszip.min.js"></script>
+  <script src="js/pep.js"></script>
+  <script src="js/tipstepper.js"></script>
+  <script src="js/pixshop.js"></script>
+  <script src="js/drawing.js"></script>
+  <script src="js/materialize.min.js"></script>
+  <script src="js/dist/libgif.js"></script>
+  <script src="js/dist/gif.js"></script>
+
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      background: url('https://i.ibb.co/63sfJzW/pixel-art-sky-4.png') no-repeat center center fixed;
-      background-size: cover;
-      font-family: sans-serif;
-    }
-    #pixel-art-app {
-      display: table;
-      width: 100%;
-      height: 100%;
+    /* -------------------------------------------------------
+       GENERAL LAYOUT & LIGHT THEME
+       ------------------------------------------------------- */
+    * {
       box-sizing: border-box;
+      margin: 0; 
+      padding: 0;
     }
-    .table-row {
-      display: table-row;
-    }
-    .table-cell {
-      display: table-cell;
-      vertical-align: top;
-    }
-    #left-panel {
-      width: 120px;
-      background: rgba(0,0,0,0.2);
-      padding: 10px;
-    }
-    #right-panel {
-      width: 160px;
-      background: rgba(0,0,0,0.1);
-      padding: 10px;
-    }
-    #main-area {
-      position: relative;
-      padding: 10px;
-    }
-    #canvas-container {
+    html, body {
       width: 100%;
-      height: 600px;
-      margin: 0 auto;
+      height: 100%;
+      font-family: Arial, sans-serif;
+      background: #fafafa;
+      color: #222;
+      overflow: hidden; /* We'll manage scrolling in panels */
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    header {
+      background: #f0f0f0;
+      padding: 8px 12px;
+      border-bottom: 1px solid #ddd;
+    }
+    .toolbar {
       display: flex;
       align-items: center;
-      justify-content: center;
-      /* Removed border: 1px solid #ccc; */
-      border: none;
-      background: transparent;
-      overflow: auto;
-      box-sizing: border-box;
+      gap: 8px;
     }
-    #pixel-canvas {
-      background: white;
-      cursor: crosshair;
-    }
-    .tools-header {
-      font-weight: bold;
-      color: #fff;
-      margin-bottom: 8px;
-    }
-    .tool-button {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background-color: #555;
-      color: #f0f0f0;
-      border: none;
-      border-radius: 6px;
-      padding: 0 12px;
-      height: 36px;
+    .btn {
+      appearance: none;
+      border: 1px solid #ccc;
+      background: #fff;
+      color: #333;
+      padding: 6px 12px;
+      border-radius: 4px;
       cursor: pointer;
-      transition: background-color 0.2s ease;
-      margin: 4px 0;
-      width: 100%;
-      box-sizing: border-box;
+      font-size: 14px;
+      transition: background 0.2s;
     }
-    .tool-button:hover {
-      background-color: #666;
+    .btn:hover {
+      background: #e9e9e9;
     }
-    .tool-button:disabled {
+    .btn:disabled {
       opacity: 0.5;
       cursor: default;
     }
-    .color-box {
-      width: 28px;
-      height: 28px;
-      cursor: pointer;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      margin: 2px;
+    .btn-primary {
+      background: #007bff;
+      border-color: #007bff;
+      color: #fff;
     }
-    .color-palette-container {
+    .btn-primary:hover {
+      background: #0069d9;
+    }
+
+    .editor-container {
+      flex: 1;
       display: flex;
-      flex-wrap: wrap;
-      gap: 4px;
-      margin-top: 8px;
+      overflow: hidden;
     }
-    input[type="color"] {
-      width: 40px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      height: 36px;
-      padding: 0;
-      margin-top: 4px;
-      box-sizing: border-box;
+
+    /* --------------------------------------------
+       LEFT SIDEBAR: Tools, Colors, Stamps, etc.
+       -------------------------------------------- */
+    .left-panel {
+      width: 80px;
+      background: #f8f8f8;
+      border-right: 1px solid #ddd;
+      overflow-y: auto;
+      padding: 8px;
     }
-    .number-input {
-      width: 60px;
-      text-align: center;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      outline: none;
+    .tool-item {
+      width: 64px;
+      height: 64px;
+      margin: 4px auto;
       background: #fff;
-      height: 36px;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    .bottom-panel {
-      margin-top: 8px;
-    }
-    .control-row {
-      display: flex;
-      justify-content: center;
-      gap: 8px;
-      margin: 6px 0;
-    }
-    .advanced-color-panel-header {
-      font-weight: bold;
-      color: #333;
-      margin-bottom: 8px;
-    }
-    .checkbox-row {
-      margin: 8px 0;
       display: flex;
       align-items: center;
-      gap: 6px;
+      justify-content: center;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      font-size: 12px;
+      text-align: center;
+      cursor: pointer;
+      user-select: none;
     }
-    .frame-panel {
-      position: fixed;
-      width: 100%;
-      background-color: #333;
-      bottom: 0;
-      left: 0;
-      padding: 8px;
-      display: none;
-      border-top: 1px solid rgba(0,0,0,0.5);
+    .tool-item.active {
+      border-color: #007bff;
     }
-    .frame-panel.active {
-      display: block;
+
+    /* Tool Group Headers */
+    .panel-header {
+      font-weight: bold;
+      font-size: 13px;
+      margin: 8px 0 4px;
+      text-transform: uppercase;
+      color: #666;
     }
-    .frame-panel-header {
-      color: #fff;
-      font-size: 14px;
-      margin-bottom: 6px;
+
+    /* -----------------------------------------
+       CENTER AREA: Canvas & optional overlays
+       ----------------------------------------- */
+    .center-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
     }
-    .invisible-table {
-      display: table;
-      width: 100%;
+    /* A top mini-panel for tool settings, etc. */
+    .tool-settings-bar {
+      background: #f9f9f9;
+      border-bottom: 1px solid #ddd;
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
-    .invisible-table-row {
-      display: table-row;
-    }
-    .invisible-table-cell {
-      display: table-cell;
-      vertical-align: top;
-      padding: 4px;
-    }
-    #layer-section {
-      position: fixed;
-      right: 0;
-      top: 0;
-      width: 200px;
-      height: 100%;
-      background-color: rgba(0,0,0,0.3);
-      padding: 8px;
+    .canvas-container {
+      flex: 1;
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
       overflow: auto;
-      display: none;
+      background: #fff;
     }
-    #layer-section.active {
-      display: block;
+    canvas {
+      background: #fff;
+      image-rendering: pixelated;
+      /* By default we do nearest-neighbor for crisp pixel art */
     }
-    #layer-section h2 {
-      color: #fff;
-      margin-bottom: 8px;
-      font-size: 16px;
+
+    /* Zoom overlay or something else if needed */
+    .overlay-info {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      background: rgba(255,255,255,0.8);
+      border: 1px solid #ddd;
+      padding: 4px 6px;
+      font-size: 12px;
+      color: #333;
     }
-    .layer-list-item {
+
+    /* -----------------------------------------
+       RIGHT SIDEBAR: Layers, frames, etc.
+       ----------------------------------------- */
+    .right-panel {
+      width: 250px;
+      background: #f8f8f8;
+      border-left: 1px solid #ddd;
+      overflow-y: auto;
+      padding: 8px;
+    }
+    .panel-section {
+      margin-bottom: 12px;
+    }
+    .layer-list,
+    .frame-list {
       border: 1px solid #ccc;
-      margin-bottom: 6px;
+      background: #fff;
+      max-height: 300px;
+      overflow-y: auto;
       padding: 4px;
-      background: #444;
-      color: #fff;
+      margin-top: 4px;
+    }
+    .layer-item,
+    .frame-item {
+      background: #fafafa;
+      border: 1px solid #ddd;
+      padding: 4px 6px;
+      margin-bottom: 4px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: space-between;
       font-size: 12px;
     }
-    .layer-controls {
+    .layer-item:hover,
+    .frame-item:hover {
+      background: #f0f0f0;
+    }
+
+    /* -----------------------------------------
+       BOTTOM FRAME CONTROLS (optional)
+       If we want a bottom bar for frames/timeline
+       ----------------------------------------- */
+    .bottom-bar {
+      background: #f2f2f2;
+      padding: 6px 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-top: 1px solid #ddd;
+    }
+
+    /* -----------------------------------------
+       Color palette
+       ----------------------------------------- */
+    .color-palette {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
       margin-top: 8px;
     }
+    .color-swatch {
+      width: 24px;
+      height: 24px;
+      border: 1px solid #ccc;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    /* -----------------------------------------
+       Hide or show panels with classes if needed
+       ----------------------------------------- */
+    .hidden {
+      display: none !important;
+    }
+
   </style>
 </head>
 <body>
-<div id="pixel-art-app">
-  <div class="table-row">
-    <div id="left-panel" class="table-cell">
-      <div class="tools-header">Tools</div>
-      <button class="tool-button" @click="selectTool('pencil')" :disabled="tool==='pencil'">Pencil</button>
-      <button class="tool-button" @click="selectTool('eraser')" :disabled="tool==='eraser'">Eraser</button>
-      <button class="tool-button" @click="selectTool('fill')" :disabled="tool==='fill'">Fill</button>
-      <button class="tool-button" @click="toggleFrames">Frames Panel</button>
-      <button class="tool-button" @click="toggleLayerPanel">Layers</button>
-      <button class="tool-button" @click="undo" :disabled="historyIndex<=0">Undo</button>
-      <button class="tool-button" @click="redo" :disabled="historyIndex>=history.length-1">Redo</button>
-      <button class="tool-button" @click="clearCanvas">Clear</button>
-      <button class="tool-button" @click="exportPNG">Export PNG</button>
+<div id="pixel-editor-app">
+  <!-- TOP TOOLBAR (File, Edit, etc.) -->
+  <header>
+    <div class="toolbar">
+      <!-- Just an example of a top "menu bar" or quick shortcuts -->
+      <button class="btn" @click="newCanvas">New</button>
+      <button class="btn" @click="openPixilFile">Open .pixil</button>
+      <button class="btn" @click="savePixilFile">Save .pixil</button>
+      <button class="btn" @click="exportImage">Export</button>
+      <button class="btn" @click="toggleSettings">Settings</button>
+      <button class="btn" @click="undo" :disabled="historyIndex <= 0">Undo</button>
+      <button class="btn" @click="redo" :disabled="historyIndex >= history.length - 1">Redo</button>
+      <button class="btn" @click="toggleFramesPanel">Frames</button>
+      <button class="btn" @click="toggleLayersPanel">Layers</button>
+      <button class="btn" @click="toggleAnimationPreview">Preview GIF</button>
+      <span style="margin-left:auto;"></span>
+      <button class="btn btn-primary" @click="submitDrawing">Save Drawing (Online)</button>
     </div>
+  </header>
 
-    <div id="main-area" class="table-cell">
-      <div id="canvas-container" ref="canvasContainer">
-        <canvas 
-          id="pixel-canvas" 
-          ref="canvasRef"
-          @mousedown="startDrawing"
-          @mousemove="draw"
-          @mouseup="stopDrawing"
-          @mouseleave="stopDrawing"
-        ></canvas>
-      </div>
-      <div class="bottom-panel">
-        <div class="control-row">
-          <input type="number" class="number-input" v-model="widthValue" min="1" max="512"/>
-          <input type="number" class="number-input" v-model="heightValue" min="1" max="512"/>
-          <button class="tool-button" @click="setGridSize">Set</button>
-          <button class="tool-button" @click="zoomOut" :disabled="zoom<=1">-</button>
-          <span style="color:#333;">Zoom {{zoom}}x</span>
-          <button class="tool-button" @click="zoomIn">+</button>
-        </div>
-        <div class="control-row checkbox-row">
-          <input type="checkbox" id="toggle-grid" v-model="showGrid"/>
-          <label for="toggle-grid" style="color:#333;">Show Grid Lines</label>
-        </div>
-        <div class="control-row">
-          <select v-model="renderMode" class="tool-button" style="width:auto;">
-            <option value="fast">Performance</option>
-            <option value="quality">High Quality</option>
-          </select>
-        </div>
-      </div>
-    </div>
+  <div class="editor-container">
 
-    <div id="right-panel" class="table-cell">
-      <div class="tools-header" style="color:#000;">Advanced Colors</div>
-      <input type="color" v-model="customColor"/>
-      <button class="tool-button" style="margin-top:6px;" @click="addCustomColor">Add Color</button>
-      <div class="color-palette-container">
+    <!-- LEFT SIDEBAR: Tools, color pickers, stamps, etc. -->
+    <div class="left-panel">
+      <div class="panel-header">Tools</div>
+
+      <!-- Basic Tools List -->
+      <div 
+        class="tool-item" 
+        :class="{active: activeTool==='pencil'}"
+        @click="setTool('pencil')"
+      >Pencil</div>
+      <div 
+        class="tool-item" 
+        :class="{active: activeTool==='eraser'}" 
+        @click="setTool('eraser')"
+      >Eraser</div>
+      <div 
+        class="tool-item" 
+        :class="{active: activeTool==='fill'}"
+        @click="setTool('fill')"
+      >Fill</div>
+      <div 
+        class="tool-item" 
+        :class="{active: activeTool==='line'}"
+        @click="setTool('line')"
+      >Line</div>
+      <div 
+        class="tool-item" 
+        :class="{active: activeTool==='circle'}"
+        @click="setTool('circle')"
+      >Circle</div>
+      <div 
+        class="tool-item" 
+        :class="{active: activeTool==='rect'}"
+        @click="setTool('rect')"
+      >Rect</div>
+      <div 
+        class="tool-item" 
+        :class="{active: activeTool==='picker'}"
+        @click="setTool('picker')"
+      >Picker</div>
+      <div 
+        class="tool-item" 
+        :class="{active: activeTool==='stamp'}"
+        @click="setTool('stamp')"
+      >Stamp</div>
+      <div 
+        class="tool-item" 
+        :class="{active: activeTool==='dither'}"
+        @click="setTool('dither')"
+      >Dither</div>
+      <div 
+        class="tool-item" 
+        :class="{active: activeTool==='lightenDarken'}"
+        @click="setTool('lightenDarken')"
+      >Light/Dark</div>
+      <div 
+        class="tool-item" 
+        :class="{active: activeTool==='gradient'}"
+        @click="setTool('gradient')"
+      >Grad</div>
+      <div 
+        class="tool-item" 
+        :class="{active: activeTool==='text'}"
+        @click="setTool('text')"
+      >Text</div>
+      <!-- etc... add more advanced tools (spray, filter, etc.) as needed -->
+
+      <div class="panel-header">Colors</div>
+      <!-- Primary / Secondary color pickers -->
+      <div style="text-align:center;">
+        <div>
+          <label>Primary</label>
+          <input type="color" v-model="primaryColor" @input="colorChanged('primary')" />
+        </div>
+        <div>
+          <label>Secondary</label>
+          <input type="color" v-model="secondaryColor" @input="colorChanged('secondary')" />
+        </div>
+      </div>
+
+      <div class="panel-header">Palette</div>
+      <div class="color-palette">
         <div 
-          v-for="c in colorPalette" 
-          :key="c" 
-          class="color-box" 
-          :style="{backgroundColor:c}" 
-          @click="setColor(c)"
+          class="color-swatch"
+          v-for="(clr, idx) in colorPalette"
+          :key="idx"
+          :style="{backgroundColor: clr}"
+          @click="setActiveColor(clr)"
         ></div>
       </div>
-    </div>
-  </div>
-</div>
+      <button class="btn" style="margin-top:8px;" @click="addColorToPalette">Add Current Color</button>
 
-<div class="frame-panel" :class="{active: framesActive}">
-  <div class="frame-panel-header">Frames</div>
-  <div>
-    <div v-for="(frame, idx) in frames" :key="idx" style="border:1px solid #999;padding:4px;margin-bottom:4px;background:#222;color:#fff;">
-      Frame {{idx+1}}
-      <button style="float:right;" @click="deleteFrame(idx)">Del</button>
-    </div>
-  </div>
-  <button class="tool-button" style="width:auto;margin-right:4px;" @click="addFrame">Add Frame</button>
-  <button class="tool-button" style="width:auto;" @click="previewFrames">Preview</button>
-</div>
+      <div class="panel-header">Stamps</div>
+      <button class="btn" @click="openStampGallery">Open Stamp Gallery</button>
+      <!-- Stamp features (just placeholders) -->
 
-<div id="layer-section" :class="{active: layerPanelActive}">
-  <h2>Layers</h2>
-  <div v-for="(layer, idx) in layers" :key="idx" class="layer-list-item">
-    <div>Layer {{idx+1}}</div>
-    <div>
-      <button @click="deleteLayer(idx)">X</button>
+    </div>
+
+    <!-- MIDDLE: Canvas + tool settings bar + possible overlays -->
+    <div class="center-area">
+      <!-- Tool settings bar -->
+      <div class="tool-settings-bar">
+        <label>Pixel Size:
+          <input 
+            type="range"
+            min="1"
+            max="24"
+            step="1"
+            v-model="pixelSize"
+            @input="refreshCanvas"
+          />
+          <span>{{ pixelSize }}</span>
+        </label>
+
+        <label>
+          <input type="checkbox" v-model="pixelPerfect" @change="refreshCanvas" />
+          Pixel Perfect
+        </label>
+        
+        <label>
+          <input type="checkbox" v-model="showGrid" @change="refreshCanvas" />
+          Grid
+        </label>
+
+        <button class="btn" @click="zoomOut" :disabled="zoom <= 0.25">-</button>
+        <span>Zoom: {{zoom}}x</span>
+        <button class="btn" @click="zoomIn">+</button>
+      </div>
+
+      <!-- Canvas container -->
+      <div class="canvas-container" ref="canvasParent">
+        <canvas 
+          ref="mainCanvas"
+          @mousedown="onMouseDown"
+          @mousemove="onMouseMove"
+          @mouseup="onMouseUp"
+          @mouseleave="onMouseUp"
+        ></canvas>
+        
+        <div class="overlay-info" v-if="debugOverlay">
+          Mouse: {{mouseX}}, {{mouseY}}<br/>
+          Canvas: {{canvasWidth}} x {{canvasHeight}}
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT SIDEBAR: Layers, frames, filters, etc. -->
+    <div class="right-panel">
+      <!-- LAYERS -->
+      <div class="panel-section">
+        <h4>Layers</h4>
+        <button class="btn" @click="addLayer">Add Layer</button>
+        <div class="layer-list">
+          <div
+            v-for="(layer, lidx) in layers"
+            :key="layer.id"
+            class="layer-item"
+            :class="{active: lidx === activeLayerIndex}"
+            @click="selectLayer(lidx)"
+          >
+            Layer {{lidx + 1}}
+            <button class="btn" style="font-size:10px;padding:2px 6px;" @click.stop="deleteLayer(lidx)">X</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- FRAMES (for animation) -->
+      <div class="panel-section">
+        <h4>Frames</h4>
+        <button class="btn" @click="addFrame">Add Frame</button>
+        <div class="frame-list">
+          <div
+            v-for="(frm, fidx) in frames"
+            :key="frm.id"
+            class="frame-item"
+            :class="{active: fidx === activeFrameIndex}"
+            @click="selectFrame(fidx)"
+          >
+            Frame {{fidx + 1}}
+            <button class="btn" style="font-size:10px;padding:2px 6px;" @click.stop="deleteFrame(fidx)">Del</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- FILTERS or ADVANCED LAYER FEATURES -->
+      <div class="panel-section">
+        <h4>Layer Effects</h4>
+        <label> Blend Mode:
+          <select v-model="layerBlendMode" @change="applyLayerBlend">
+            <option value="source-over">Normal</option>
+            <option value="multiply">Multiply</option>
+            <option value="overlay">Overlay</option>
+            <option value="screen">Screen</option>
+            <option value="lighten">Lighten</option>
+            <option value="darken">Darken</option>
+            <option value="difference">Difference</option>
+            <option value="exclusion">Exclusion</option>
+            <!-- ... etc. -->
+          </select>
+        </label>
+        <button class="btn" @click="applyInvert">Invert</button>
+        <button class="btn" @click="fillCurrentLayer">Fill Layer</button>
+        <button class="btn" @click="outlineLayer">Outline Layer</button>
+      </div>
     </div>
   </div>
-  <div class="layer-controls">
-    <button class="tool-button" style="width:100%;margin-bottom:4px;" @click="addLayer">Add Layer</button>
-    <button class="tool-button" style="width:100%;" @click="toggleLayerPanel">Close</button>
+
+  <!-- BOTTOM BAR (Frames timeline, or a quick preview bar) -->
+  <div class="bottom-bar">
+    <!-- Example usage: controlling GIF preview speed, onion skin, etc. -->
+    <label>GIF Speed (ms): 
+      <input type="number" v-model.number="gifSpeed" style="width:60px;"/>
+    </label>
+    <label>
+      <input type="checkbox" v-model="onionSkin" />
+      Onion Skin
+    </label>
   </div>
+  
+  <!-- STAMP GALLERY & OTHER MODALS WOULD GO HERE -->
+  <!-- Settings Modal, if open, etc. For brevity, omitted. -->
+
 </div>
 
 <script>
-const app = Vue.createApp({
+const PixelEditorApp = {
   data() {
     return {
-      gridWidth: 100,
-      gridHeight: 100,
-      widthValue: 100,
-      heightValue: 100,
-      tool: 'pencil',
-      color: '#000000',
-      customColor: '#ff0000',
-      colorPalette: [
-        '#000000','#ffffff','#ff0000',
-        '#00ff00','#0000ff','#ffff00',
-        '#00ffff','#ff00ff'
-      ],
-      pixels: [],
-      isDrawing: false,
-      zoom: 1,
-      history: [],
-      historyIndex: 0,
+      // Canvas sizes
+      canvasWidth: 64,
+      canvasHeight: 64,
+
+      // Tools
+      activeTool: 'pencil',
+      pixelSize: 1,
+      pixelPerfect: false,
       showGrid: true,
-      renderMode: 'fast',
-      framesActive: false,
-      frames: [],
-      layerPanelActive: false,
-      layers: []
+
+      // Colors
+      primaryColor: '#000000',
+      secondaryColor: '#ffffff',
+      colorPalette: ['#000000','#ffffff','#ff0000','#00ff00','#0000ff','#ffff00','#00ffff','#ff00ff'],
+
+      // Zoom
+      zoom: 1,
+
+      // Layers
+      layers: [
+        // each layer can store pixel data or a separate offscreen canvas
+      ],
+      activeLayerIndex: 0,
+
+      // Frames (for animation)
+      frames: [
+        // each frame references the layers or a snapshot
+      ],
+      activeFrameIndex: 0,
+
+      // History
+      history: [],
+      historyIndex: -1,
+
+      // Debug
+      debugOverlay: true,
+      mouseX: 0,
+      mouseY: 0,
+
+      // For blend mode, filters, etc.
+      layerBlendMode: 'source-over',
+
+      // Animation
+      gifSpeed: 100,
+      onionSkin: false
     }
   },
   mounted() {
-    this.initGrid();
-    this.loadCookie();
-    this.renderCanvas();
-    window.addEventListener('resize', this.renderCanvas);
-    this.frames.push({data: []});
-    this.layers.push({data: []});
+    // initialize everything
+    this.initEditor();
+    // push default layer & frame
+    this.addLayer();
+    this.addFrame();
+    // track window resizing if needed
+    window.addEventListener('resize', this.refreshCanvas);
   },
   unmounted() {
-    window.removeEventListener('resize', this.renderCanvas);
+    window.removeEventListener('resize', this.refreshCanvas);
   },
   methods: {
-    toggleFrames() {
-      this.framesActive = !this.framesActive;
+    initEditor() {
+      // your initial setup code
+      this.resizeCanvas();
+      this.recordHistory();
     },
-    addFrame() {
-      this.frames.push({data: []});
+    resizeCanvas(w = 64, h = 64) {
+      this.canvasWidth = w;
+      this.canvasHeight = h;
+      this.refreshCanvas();
     },
-    deleteFrame(idx) {
-      if(this.frames.length>1) this.frames.splice(idx,1);
+    refreshCanvas() {
+      // Redraw the entire canvas with layers & frames
+      const canvas = this.$refs.mainCanvas;
+      if (!canvas) return;
+
+      const ctx = canvas.getContext('2d');
+
+      // size the canvas DOM element
+      let parent = this.$refs.canvasParent;
+      if (!parent) return;
+      // compute scaled size
+      let scaledW = this.canvasWidth * this.zoom * this.pixelSize;
+      let scaledH = this.canvasHeight * this.zoom * this.pixelSize;
+      canvas.width = scaledW;
+      canvas.height = scaledH;
+
+      // fill background
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, scaledW, scaledH);
+
+      // Draw a checker or something for clarity if needed...
+      if (this.showGrid) {
+        this.drawGrid(ctx, scaledW, scaledH);
+      }
+
+      // Then draw each layer that belongs to the current frame
+      // For simplicity, let's say each layer has an offscreen canvas or pixel data
+      this.layers.forEach((layer, index) => {
+        // draw layer's pixel data
+        // apply blend mode if needed
+        ctx.globalCompositeOperation = (index === this.activeLayerIndex) 
+          ? this.layerBlendMode : 'source-over';
+        this.drawLayer(ctx, layer);
+      });
+      ctx.globalCompositeOperation = 'source-over'; // reset
     },
-    previewFrames() {
-      alert('Previewing frames (demo).');
+    drawGrid(ctx, w, h) {
+      // for a small "pixel" style grid:
+      const cellSize = this.zoom * this.pixelSize;
+      ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+      ctx.beginPath();
+      // vertical lines
+      for (let x=0; x <= w; x+= cellSize) {
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+      }
+      // horizontal lines
+      for (let y=0; y <= h; y+= cellSize) {
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+      }
+      ctx.stroke();
     },
-    toggleLayerPanel() {
-      this.layerPanelActive = !this.layerPanelActive;
+    drawLayer(ctx, layer) {
+      // if each layer holds a simple 2D array of color hex or null, do:
+      if (!layer.pixels) return;
+      const cell = this.zoom * this.pixelSize;
+      for (let y=0; y < this.canvasHeight; y++){
+        for (let x=0; x < this.canvasWidth; x++){
+          const color = layer.pixels[y][x];
+          if (color) {
+            ctx.fillStyle = color;
+            ctx.fillRect(x*cell, y*cell, cell, cell);
+          }
+        }
+      }
     },
+
+    // LAYERS
     addLayer() {
-      this.layers.push({data: []});
+      // each layer could be a 2D array of null
+      let newLayer = this.createEmptyLayer();
+      this.layers.push(newLayer);
+      this.activeLayerIndex = this.layers.length-1;
+      this.refreshCanvas();
     },
     deleteLayer(idx) {
-      if(this.layers.length>1) this.layers.splice(idx,1);
-    },
-    setCookie(name, value, days) {
-      let d = new Date();
-      d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
-      let expires = "expires=" + d.toUTCString();
-      document.cookie = name + "=" + value + ";" + expires + ";path=/";
-    },
-    getCookie(name) {
-      let decodedCookie = decodeURIComponent(document.cookie);
-      let ca = decodedCookie.split(';');
-      for(let i=0; i<ca.length; i++){
-        let c = ca[i].trim();
-        if (c.indexOf(name + "=") == 0) return c.substring(name.length + 1,c.length);
+      if (this.layers.length === 1) return; // keep at least one
+      this.layers.splice(idx, 1);
+      if (this.activeLayerIndex >= this.layers.length) {
+        this.activeLayerIndex = this.layers.length -1;
       }
-      return "";
+      this.refreshCanvas();
     },
-    saveCookie() {
-      let data = JSON.stringify({
-        pixels: this.pixels,
-        tool: this.tool,
-        color: this.color,
-        gridWidth: this.gridWidth,
-        gridHeight: this.gridHeight
-      });
-      this.setCookie('pixelArtData', data, 30);
+    selectLayer(idx) {
+      this.activeLayerIndex = idx;
+      this.refreshCanvas();
     },
-    loadCookie() {
-      let saved = this.getCookie('pixelArtData');
-      if(saved) {
-        let obj = JSON.parse(saved);
-        if(obj.gridWidth && obj.gridHeight) {
-          this.gridWidth = obj.gridWidth;
-          this.gridHeight = obj.gridHeight;
-          this.widthValue = obj.gridWidth;
-          this.heightValue = obj.gridHeight;
+    createEmptyLayer() {
+      let pixels = [];
+      for (let y=0; y < this.canvasHeight; y++){
+        pixels[y] = [];
+        for (let x=0; x < this.canvasWidth; x++){
+          pixels[y][x] = null;
         }
-        this.initGrid();
-        if(obj.pixels && obj.pixels.length === this.gridWidth * this.gridHeight) {
-          this.pixels = obj.pixels;
-        }
-        if(obj.tool) this.tool = obj.tool;
-        if(obj.color) this.color = obj.color;
+      }
+      return {
+        id: Date.now() + Math.random(),
+        pixels
+      };
+    },
+
+    // FRAMES
+    addFrame() {
+      // For real usage, you’d store references to each layer’s data or copy them 
+      // into the frame’s structure. For brevity, we only track an ID.
+      let newFrame = { id: 'frame-'+Date.now(), name: 'Frame' + (this.frames.length+1) };
+      this.frames.push(newFrame);
+      this.activeFrameIndex = this.frames.length - 1;
+    },
+    deleteFrame(idx) {
+      if (this.frames.length === 1) return;
+      this.frames.splice(idx,1);
+      if (this.activeFrameIndex >= this.frames.length) {
+        this.activeFrameIndex = this.frames.length-1;
       }
     },
-    initGrid() {
-      this.pixels = [];
-      for(let i=0; i < this.gridWidth * this.gridHeight; i++){
-        this.pixels.push(null);
-      }
+    selectFrame(idx) {
+      this.activeFrameIndex = idx;
+      // in a real scenario, switch out the layers or something
+      this.refreshCanvas();
     },
-    setGridSize() {
-      let w = parseInt(this.widthValue, 10);
-      let h = parseInt(this.heightValue, 10);
-      if(isNaN(w) || w < 1 || w > 512) return;
-      if(isNaN(h) || h < 1 || h > 512) return;
-      this.recordHistory();
-      this.gridWidth = w;
-      this.gridHeight = h;
-      this.initGrid();
-      this.renderCanvas();
-    },
-    selectTool(t) {
-      this.tool = t;
-    },
-    setColor(c) {
-      this.color = c;
-      this.tool = 'pencil';
-    },
-    addCustomColor() {
-      if(!this.colorPalette.includes(this.customColor)) {
-        this.colorPalette.push(this.customColor);
-      }
-    },
-    startDrawing(e) {
-      this.isDrawing = true;
-      this.handleDraw(e);
-    },
-    draw(e) {
-      if(!this.isDrawing) return;
-      this.handleDraw(e);
-    },
-    stopDrawing() {
-      if(this.isDrawing) {
-        this.isDrawing = false;
-        this.recordHistory();
-        this.saveCookie();
-      }
-    },
-    handleDraw(e) {
-      let rect = this.$refs.canvasRef.getBoundingClientRect();
+
+    // MOUSE
+    onMouseDown(e) {
+      const rect = this.$refs.mainCanvas.getBoundingClientRect();
       let x = e.clientX - rect.left;
       let y = e.clientY - rect.top;
-      let cellW = this.$refs.canvasRef.width / this.gridWidth;
-      let cellH = this.$refs.canvasRef.height / this.gridHeight;
-      let col = Math.floor(x / cellW);
-      let row = Math.floor(y / cellH);
-      if(col < 0 || col >= this.gridWidth || row < 0 || row >= this.gridHeight) return;
-      let index = row * this.gridWidth + col;
-      if(this.tool === 'pencil') {
-        this.pixels[index] = this.color;
-        this.renderCanvas();
+      this.drawOnCanvas(x, y, true);
+      window.addEventListener('mousemove', this.onMouseDrag);
+      window.addEventListener('mouseup', this.onMouseUp);
+    },
+    onMouseDrag(e) {
+      const rect = this.$refs.mainCanvas.getBoundingClientRect();
+      let x = e.clientX - rect.left;
+      let y = e.clientY - rect.top;
+      this.drawOnCanvas(x, y, false);
+    },
+    onMouseUp(e) {
+      window.removeEventListener('mousemove', this.onMouseDrag);
+      window.removeEventListener('mouseup', this.onMouseUp);
+      // store in history
+      this.recordHistory();
+    },
+    onMouseMove(e) {
+      const rect = this.$refs.mainCanvas.getBoundingClientRect();
+      this.mouseX = Math.floor((e.clientX - rect.left)/(this.zoom*this.pixelSize));
+      this.mouseY = Math.floor((e.clientY - rect.top)/(this.zoom*this.pixelSize));
+    },
+
+    drawOnCanvas(px, py, isInitial) {
+      // transform screen coords to canvas coords
+      let cx = Math.floor(px/(this.zoom*this.pixelSize));
+      let cy = Math.floor(py/(this.zoom*this.pixelSize));
+      if (cx < 0 || cy < 0 || cx >= this.canvasWidth || cy >= this.canvasHeight) return;
+      // get active layer
+      let layer = this.layers[this.activeLayerIndex];
+      if (!layer) return;
+
+      if (this.activeTool === 'pencil') {
+        layer.pixels[cy][cx] = this.primaryColor;
+        this.refreshCanvas();
       }
-      if(this.tool === 'eraser') {
-        this.pixels[index] = null;
-        this.renderCanvas();
+      else if (this.activeTool === 'eraser') {
+        layer.pixels[cy][cx] = null;
+        this.refreshCanvas();
       }
-      if(this.tool === 'fill') {
-        let targetColor = this.pixels[index];
-        let fillColor = this.color;
-        if(targetColor === fillColor) return;
-        this.floodFill(col, row, targetColor, fillColor);
-        this.renderCanvas();
-        this.recordHistory();
-        this.saveCookie();
+      // fill, line, circle, stamps, etc. would be more advanced logic
+    },
+
+    // COLORS
+    setActiveColor(clr) {
+      this.primaryColor = clr;
+    },
+    colorChanged(which) {
+      // user changed either primary or secondary color
+      // automatically do something
+    },
+    addColorToPalette() {
+      if (!this.colorPalette.includes(this.primaryColor)) {
+        this.colorPalette.push(this.primaryColor);
       }
     },
-    floodFill(col, row, target, fillColor) {
-      let stack = [[col, row]];
-      while(stack.length){
-        let [x, y] = stack.pop();
-        if(x<0 || x>=this.gridWidth || y<0 || y>=this.gridHeight) continue;
-        let idx = y * this.gridWidth + x;
-        if(this.pixels[idx] === target){
-          this.pixels[idx] = fillColor;
-          stack.push([x+1, y],[x-1, y],[x, y+1],[x, y-1]);
+
+    // ADVANCED LAYER EFFECTS
+    applyLayerBlend() {
+      // In real usage, you’d re-render with the specified blend mode
+      this.refreshCanvas();
+    },
+    applyInvert() {
+      let layer = this.layers[this.activeLayerIndex];
+      if (!layer) return;
+      // simple invert
+      for (let y=0; y<this.canvasHeight; y++){
+        for (let x=0; x<this.canvasWidth; x++){
+          let c = layer.pixels[y][x];
+          if (c) {
+            // convert hex => invert => re-assign
+            layer.pixels[y][x] = this.invertColor(c);
+          }
         }
       }
+      this.refreshCanvas();
+      this.recordHistory();
     },
-    undo() {
-      if(this.historyIndex > 0){
-        this.historyIndex--;
-        this.pixels = JSON.parse(JSON.stringify(this.history[this.historyIndex]));
-        this.renderCanvas();
-        this.saveCookie();
+    invertColor(hex) {
+      // a quick approach
+      if (hex[0] === '#') hex = hex.slice(1);
+      let num = parseInt(hex, 16);
+      let r = 255 - ((num >> 16) & 255);
+      let g = 255 - ((num >> 8) & 255);
+      let b = 255 - (num & 255);
+      return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+    },
+    fillCurrentLayer() {
+      let layer = this.layers[this.activeLayerIndex];
+      if (!layer) return;
+      for (let y=0; y<this.canvasHeight; y++){
+        for (let x=0; x<this.canvasWidth; x++){
+          layer.pixels[y][x] = this.primaryColor;
+        }
       }
+      this.refreshCanvas();
+      this.recordHistory();
     },
-    redo() {
-      if(this.historyIndex < this.history.length - 1){
-        this.historyIndex++;
-        this.pixels = JSON.parse(JSON.stringify(this.history[this.historyIndex]));
-        this.renderCanvas();
-        this.saveCookie();
-      }
+    outlineLayer() {
+      // simplistic approach:
+      // find edge pixels and color them
+      // real logic would do more
+      alert('Outline layer not fully implemented in this demo.');
     },
+
+    // HISTORY
     recordHistory() {
-      let current = JSON.parse(JSON.stringify(this.pixels));
+      // store a snapshot of current layers
+      let snapshot = JSON.parse(JSON.stringify(this.layers));
       this.history.splice(this.historyIndex + 1);
-      this.history.push(current);
+      this.history.push(snapshot);
       this.historyIndex = this.history.length - 1;
     },
-    clearCanvas() {
-      let confirmClear = window.confirm('Are you sure you want to clear your artwork?');
-      if(!confirmClear) return;
-      this.recordHistory();
-      for(let i=0; i < this.pixels.length; i++){
-        this.pixels[i] = null;
-      }
-      this.renderCanvas();
-      this.saveCookie();
+    undo() {
+      if (this.historyIndex <= 0) return;
+      this.historyIndex--;
+      this.layers = JSON.parse(JSON.stringify(this.history[this.historyIndex]));
+      this.refreshCanvas();
     },
-    renderCanvas() {
-      let canvas = this.$refs.canvasRef;
-      let ctx = canvas.getContext('2d');
-      let container = this.$refs.canvasContainer;
-      let containerWidth = container.clientWidth;
-      let containerHeight = container.clientHeight;
-      let cellSize = Math.min(containerWidth / this.gridWidth, containerHeight / this.gridHeight) * this.zoom;
-      let totalWidth = cellSize * this.gridWidth;
-      let totalHeight = cellSize * this.gridHeight;
-      canvas.width = totalWidth;
-      canvas.height = totalHeight;
-      for(let r=0; r<this.gridHeight; r++){
-        for(let c=0; c<this.gridWidth; c++){
-          let isEven = ((r + c) % 2 === 0);
-          ctx.fillStyle = isEven ? '#ffffff' : '#e0e0e0';
-          ctx.fillRect(c*cellSize, r*cellSize, cellSize, cellSize);
-        }
-      }
-      for(let r=0; r<this.gridHeight; r++){
-        for(let c=0; c<this.gridWidth; c++){
-          let index = r * this.gridWidth + c;
-          let color = this.pixels[index];
-          if(color) {
-            ctx.fillStyle = color;
-            ctx.fillRect(c*cellSize, r*cellSize, cellSize, cellSize);
-          }
-        }
-      }
-      if(this.showGrid) {
-        ctx.beginPath();
-        ctx.strokeStyle = '#999';
-        for(let r=0; r<=this.gridHeight; r++){
-          ctx.moveTo(0, r * cellSize);
-          ctx.lineTo(totalWidth, r * cellSize);
-        }
-        for(let c=0; c<=this.gridWidth; c++){
-          ctx.moveTo(c * cellSize, 0);
-          ctx.lineTo(c * cellSize, totalHeight);
-        }
-        ctx.stroke();
+    redo() {
+      if (this.historyIndex >= this.history.length - 1) return;
+      this.historyIndex++;
+      this.layers = JSON.parse(JSON.stringify(this.history[this.historyIndex]));
+      this.refreshCanvas();
+    },
+
+    // TOGGLES
+    toggleSettings() {
+      alert('Settings popup would appear.');
+    },
+    toggleFramesPanel() {
+      alert('Open a frames panel or sidebar, toggling visible state.');
+    },
+    toggleLayersPanel() {
+      alert('Open layers panel or do nothing if always visible in the right side.');
+    },
+    toggleAnimationPreview() {
+      alert('Would show a GIF preview with onion skin if enabled and a play/stop.');
+    },
+
+    // FILE IO
+    newCanvas() {
+      if (confirm('Are you sure you want to start a new canvas? This will clear current data.')) {
+        this.layers = [];
+        this.frames = [];
+        this.initEditor();
       }
     },
+    openPixilFile() {
+      alert('.pixil open feature here.');
+    },
+    savePixilFile() {
+      alert('Save as .pixil file. Implementation omitted for brevity.');
+    },
+    exportImage() {
+      // Example export as PNG
+      let canvas = this.$refs.mainCanvas;
+      let dataURL = canvas.toDataURL('image/png');
+      let a = document.createElement('a');
+      a.href = dataURL;
+      a.download = 'pixel_art.png';
+      a.click();
+    },
+    // SUBMIT (like online sharing)
+    submitDrawing() {
+      alert('Would upload your drawing data to an online service or server.');
+    },
+
+    // ZOOM
     zoomIn() {
       this.zoom += 0.25;
-      this.renderCanvas();
+      this.refreshCanvas();
     },
     zoomOut() {
-      if(this.zoom > 1){
+      if (this.zoom > 0.25) {
         this.zoom -= 0.25;
-        this.renderCanvas();
+        this.refreshCanvas();
       }
     },
-    exportPNG() {
-      let scale = 10;
-      let tempCanvas = document.createElement('canvas');
-      tempCanvas.width = this.gridWidth * scale;
-      tempCanvas.height = this.gridHeight * scale;
-      let tctx = tempCanvas.getContext('2d');
-      for(let r=0; r<this.gridHeight; r++){
-        for(let c=0; c<this.gridWidth; c++){
-          let idx = r * this.gridWidth + c;
-          let isEven = ((r + c) % 2 === 0);
-          if(this.pixels[idx]) {
-            tctx.fillStyle = this.pixels[idx];
-          } else {
-            tctx.fillStyle = isEven ? '#ffffff' : '#e0e0e0';
-          }
-          tctx.fillRect(c*scale, r*scale, scale, scale);
-        }
-      }
-      if(this.showGrid){
-        tctx.strokeStyle = '#999';
-        for(let rr=0; rr<=this.gridHeight; rr++){
-          tctx.beginPath();
-          tctx.moveTo(0, rr*scale);
-          tctx.lineTo(this.gridWidth*scale, rr*scale);
-          tctx.stroke();
-        }
-        for(let cc=0; cc<=this.gridWidth; cc++){
-          tctx.beginPath();
-          tctx.moveTo(cc*scale, 0);
-          tctx.lineTo(cc*scale, this.gridHeight*scale);
-          tctx.stroke();
-        }
-      }
-      let dataURL = tempCanvas.toDataURL('image/png');
-      let link = document.createElement('a');
-      link.href = dataURL;
-      link.download = 'pixel_art.png';
-      link.click();
+
+    // ACTIVE TOOL
+    setTool(toolName) {
+      this.activeTool = toolName;
+    },
+
+    // STAMPS
+    openStampGallery() {
+      alert('Open stamp gallery / popup.');
     }
   }
-});
-app.mount('#pixel-art-app');
+};
+
+Vue.createApp(PixelEditorApp).mount('#pixel-editor-app');
 </script>
 
-<!-- Local JS references -->
-<script type='text/javascript' src="js/jquery.min.js"></script>
-<script type='text/javascript' src="js/jquery-ui.min.js"></script>
-<script type='text/javascript' src="js/jquery.ui.touch-punch.min.js"></script>
-<script type="text/javascript" src="js/colorpicker.js"></script>
-<script type="text/javascript" src="js/FileSaver.js"></script>
-<script type="text/javascript" src="js/jszip.min.js"></script>
-<script type="text/javascript" src="js/pep.js"></script>
-<script type="text/javascript" src="js/tipstepper.js"></script>
-<script type='text/javascript' src="js/pixshop.js"></script>
-<script type='text/javascript' src="js/drawing.js"></script>
-<script type='text/javascript' src="js/materialize.min.js"></script>
-<script type='text/javascript' src="js/dist/libgif.js"></script>
-<script type='text/javascript' src="js/dist/gif.js"></script>
-<script type='text/javascript' src="js/pixilart_app.js"></script>
 </body>
 </html>
